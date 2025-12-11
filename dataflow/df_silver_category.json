@@ -1,0 +1,88 @@
+{
+	"name": "df_silver_category",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_category",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_category",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          category_id as string,",
+				"          category_name as string,",
+				"          extra_note as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(category_id_norm = upper(trim(category_id))) ~> derivedColumn1",
+				"derivedColumn1 derive(category_id_norm = replace(category_id_norm, '\"', ''),",
+				"          category_name_norm = trim(category_name)) ~> derivedColumn2",
+				"derivedColumn2 filter(category_id_norm != '' &&",
+				"category_name_norm != '') ~> filter1",
+				"filter1 aggregate(groupBy(category_id_norm),",
+				"     category_name_norm_clean = first(category_name_norm) ) ~> aggregate1",
+				"aggregate1 select(mapColumn(",
+				"          category_id = category_id_norm,",
+				"          category_name = category_name_norm_clean",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          category_id as string,",
+				"          category_name as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          category_id,",
+				"          category_name",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

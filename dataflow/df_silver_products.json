@@ -1,0 +1,122 @@
+{
+	"name": "df_silver_products",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_products",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_products",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "derivedColumn4"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          product_id as string,",
+				"          product_name as string,",
+				"          category_id as string,",
+				"          launch_date as string,",
+				"          price as string,",
+				"          notes as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(product_id_norm = upper(trim(replace(product_id, ' ', ''))),",
+				"          product_name = replace(trim(product_name), '  ', ' '),",
+				"          category_id = iif(\r",
+				"    isNull(trim(category_id)) || trim(category_id) == '',\r",
+				"    'CAT-3',\r",
+				"    upper(trim(replace(category_id, ' ', '')))\r",
+				"),",
+				"          price_clean = replace(\r",
+				"                 replace(\r",
+				"                     replace(trim(price), '$', ''),\r",
+				"                     ',', ''\r",
+				"                 ),\r",
+				"                 '.', ''\r",
+				"             ),",
+				"          launch_date = toDate(toString(\r",
+				"  coalesce(\r",
+				"    toTimestamp(trim(launch_date), 'yyyy-MM-dd', 'en-US'),\r",
+				"    toTimestamp(trim(launch_date), 'dd/MM/yyyy', 'en-US'),\r",
+				"    toTimestamp(trim(launch_date), 'dd-MM-yyyy', 'en-US'),\r",
+				"    toTimestamp(trim(launch_date), 'yyyy.MM.dd', 'en-US'),\r",
+				"    toTimestamp(trim(launch_date), 'yyyy/MM/dd', 'en-US'),\r",
+				"    toTimestamp(trim(launch_date), 'MMM dd yyyy', 'en-US')\r",
+				"  ),\r",
+				"  'yyyy-MM-dd'\r",
+				"), 'yyyy-MM-dd')) ~> derivedColumn1",
+				"derivedColumn3 select(mapColumn(",
+				"          product_id = product_id_norm,",
+				"          product_name,",
+				"          category_id,",
+				"          launch_date,",
+				"          price",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"derivedColumn1 derive(price = toDecimal(iif(product_id == 'P-12' || product_id == 'P-43',     concat(toString(price_clean), toString(split(notes, ',')[1])),     toString(price_clean) ))) ~> derivedColumn2",
+				"derivedColumn2 derive(price_clean = iif(product_id == 'P-28', toDecimal(1761.00, 10, 2), price)\r",
+				") ~> derivedColumn3",
+				"select1 derive(price = iif(product_id == 'P-28', toDecimal(1761.00, 10, 2), price)) ~> derivedColumn4",
+				"derivedColumn4 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          product_id as string,",
+				"          product_name as string,",
+				"          category_id as string,",
+				"          launch_date as date,",
+				"          price as decimal(10,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          product_id,",
+				"          product_name,",
+				"          category_id,",
+				"          launch_date,",
+				"          price",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
