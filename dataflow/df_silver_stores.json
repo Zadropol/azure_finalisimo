@@ -15,10 +15,30 @@
 					"name": "source1"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_stores",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
 			"transformations": [
 				{
 					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "derivedColumn3"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "select1"
 				}
 			],
 			"scriptLines": [
@@ -36,9 +56,74 @@
 				"source1 derive(store_id = trim(store_id)\r",
 				",",
 				"          opened = toInteger(opened),",
-				"          store_name = trim(store_name),",
-				"          city = trim(city),",
-				"          country = trim(country)) ~> derivedColumn1"
+				"          store_name = trim(\r",
+				"    replace(\r",
+				"        replace(store_name, char(39), ''),\r",
+				"        char(34),\r",
+				"        ''\r",
+				"    )\r",
+				"),",
+				"          city = trim(\r",
+				"    replace(\r",
+				"        replace(city, char(39), ''),\r",
+				"        char(34),\r",
+				"        ''\r",
+				"    )\r",
+				"),",
+				"          country = trim(\r",
+				"    replace(\r",
+				"        replace(country, char(39), ''),\r",
+				"        char(34),\r",
+				"        ''\r",
+				"    )\r",
+				")) ~> derivedColumn1",
+				"derivedColumn1 derive(store_name = iif(store_id == 'ST-9', 'Apple Park Visitor Center', store_name),",
+				"          city = iif(store_id == 'ST-9', 'Cupertino', city)\r",
+				",",
+				"          country = iif(store_id == 'ST-9', 'United States',country),",
+				"          opened = iif(store_id == 'ST-9', 2017, opened)) ~> derivedColumn2",
+				"derivedColumn2 derive(country = iif(store_id == 'ST-31', 'Japan', country),",
+				"          city = iif(store_id == 'ST-35', 'Shanghai', city),",
+				"          store_name = iif(store_id == 'ST-48', 'Apple Calle Sainte-Catherine', store_name)) ~> derivedColumn3",
+				"derivedColumn3 aggregate(groupBy(store_id,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened),",
+				"     dummy = count(store_id)) ~> aggregate1",
+				"aggregate1 select(mapColumn(",
+				"          store_id,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          store_id as string,",
+				"          store_name as string,",
+				"          city as string,",
+				"          country as string,",
+				"          opened_year as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          store_id,",
+				"          store_name,",
+				"          city,",
+				"          country,",
+				"          opened_year = opened",
+				"     )) ~> sink1"
 			]
 		}
 	}
