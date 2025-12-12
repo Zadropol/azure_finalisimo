@@ -1,5 +1,5 @@
 {
-	"name": "dataflow1",
+	"name": "df_silver_stores",
 	"properties": {
 		"folder": {
 			"name": "Silver"
@@ -16,7 +16,11 @@
 				}
 			],
 			"sinks": [],
-			"transformations": [],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				}
+			],
 			"scriptLines": [
 				"source(output(",
 				"          store_id as string,",
@@ -28,7 +32,13 @@
 				"     allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> source1"
+				"     format: 'table') ~> source1",
+				"source1 derive(store_id = trim(store_id)\r",
+				",",
+				"          opened = toInteger(opened),",
+				"          store_name = trim(store_name),",
+				"          city = trim(city),",
+				"          country = trim(country)) ~> derivedColumn1"
 			]
 		}
 	}
